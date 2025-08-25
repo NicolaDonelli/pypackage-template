@@ -26,7 +26,6 @@ fi
 mkdir -p "${root_path}/.github/workflows"
 
 # template_file_path:destination_file_path. File paths are relative to the project root
-
 github_actions_templates=(
     "templates/continous-delivery.yml.tmpl:.github/workflows/continous-delivery.yml"
     "templates/continous-integration.yml.tmpl:.github/workflows/continous-integration.yml"
@@ -34,6 +33,8 @@ github_actions_templates=(
     "templates/TestPyPI-release.yml.tmpl:.github/workflows/TestPyPI-release.yml"
     "templates/github-page-build-and-deploy.yml.tmpl:.github/workflows/github-page-build-and-deploy.yml"
 )
+
+circleci_templates=("templates/circleci-config.yml.tmpl:.circleci/config.yml")
 
 general_templates=(
     "templates/pyproject.toml.tmpl:pyproject.toml"
@@ -44,22 +45,19 @@ general_templates=(
     "templates/Makefile.tmpl:Makefile"
     "templates/README.md.tmpl:README.md"
     "templates/MANIFEST.in.tmpl:MANIFEST.in"
-    "templates/.gitattributes.tmpl:.gitattributes"
+    "templates/.pre-commit-config.yaml.tmpl:.pre-commit-config.yaml"
 )
 
 templates=(
     "${general_templates[@]}"
+    "${circleci_templates[@]}"
     "${github_actions_templates[@]}"
 )
-
-# placeholder in format placeholder:description
-project_id_placeholder="PROJECT_ID:Google Cloud Project ID"
 
 placeholders=(
     "PROJECT_NAME:Project name"
     "SRC:Source folder name"
     "PROJECT_DESCRIPTION:Project description"
-    "${project_id_placeholder}"
 )
 
 user_values=()
@@ -69,11 +67,7 @@ for placeholder in "${placeholders[@]}" ; do
     description="${placeholder##*:}"
     printf "%s: " "${description}"
     read -r value
-    if [ ! "${placeholder}" = "${project_id_placeholder}" ] || [ ! "${value}" = "" ]; then
-      user_values+=("${value}")
-    else
-      placeholders=("${placeholders[@]/$project_id_placeholder}")
-    fi;
+    user_values+=("${value}")
 done
 printf "Remove templates (Y/n)? "
 read -r remove_templates
@@ -84,37 +78,34 @@ for template in "${templates[@]}" ; do
     source_path="${root_path}/${template%%:*}"
     dest_path="${root_path}/${template##*:}"
 
-    if [[ "${terraform_templates[*]}" =~ ${template%%:*} ]] && [[ ! ${placeholders[*]} =~ ${project_id_placeholder} ]];
+    if [ -f "${source_path}" ];
     then
-      printf "${green}Processed but not created ${nc}%s\n" "${dest_path}"
+        result=$(cat "${source_path}")
+        for idx in "${!user_values[@]}" ; do
+            placeholder=${placeholders[idx]}
+            placeholder_name="${placeholder%%:*}"
+            val=${user_values[idx]}
+            result="${result//"{{${placeholder_name}}}"/${val}}"
+            if [ "${placeholder_name}" = "SRC" ] && [ -z "${src_val+x}" ]; then
+              src_val=${val}
+            fi
+        done
+        mkdir -p "$(dirname "${dest_path}")"
+        echo "${result}" > "${dest_path}"
+        printf "${green}Processed and created ${nc}%s\n" "${dest_path}"
     else
-      if [ -f "${source_path}" ];
-      then
-          result=$(cat "${source_path}")
-          for idx in "${!user_values[@]}" ; do
-              placeholder=${placeholders[idx]}
-              placeholder_name="${placeholder%%:*}"
-              val=${user_values[idx]}
-              result="${result//"{{${placeholder_name}}}"/${val}}"
-              if [ "${placeholder_name}" = "SRC" ] && [ ! -d "${root_path}/${val}" ]; then
-                mkdir -p "${root_path}/${val}"
-                cp "${root_path}/src/"*.py "${root_path}/${val}"
-                rm -rf "${root_path}/src"
-              fi
-          done
-          mkdir -p "$(dirname "${dest_path}")"
-          echo "${result}" > "${dest_path}"
-          printf "${green}Processed and created ${nc}%s\n" "${dest_path}"
-      else
-          printf "${red}File not found ${nc}%s\n" "${source_path}"
-      fi
+        printf "${red}File not found ${nc}%s\n" "${source_path}"
     fi
 done
 
-if [ "${remove_templates}" = "Y" ] || [ "${remove_templates}" = "y" ]; then
-    rm -rf "templates"
+if [ ! -d "${root_path}/${src_val}" ]; then
+  mkdir -p "${root_path}/${src_val}"
+  cp "${root_path}/src/"* "${root_path}/${src_val}"
+  printf "${green}${root_path}/src moved to ${nc}%s\n" "${root_path}/${src_val}"
+  rm -rf "${root_path}/src"
+  unset src_val
 fi
 
-if [[ ! ${placeholders[*]} =~ ${project_id_placeholder} ]]; then
-    rm -rf "terraform"
+if [ "${remove_templates}" = "Y" ] || [ "${remove_templates}" = "y" ]; then
+    rm -rf "templates"
 fi

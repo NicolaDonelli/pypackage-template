@@ -1,3 +1,7 @@
-from ._version import get_versions
+from importlib.metadata import PackageNotFoundError, version
 
-__version__ = get_versions()["version"]
+try:
+    __version__ = version(__package__)
+except PackageNotFoundError:
+    # package is not installed
+    pass

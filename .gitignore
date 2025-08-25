@@ -137,3 +137,7 @@ dmypy.json
 
 # opendiff
 *.orig
+
+# Closed requirements
+requirements/requirements.txt
+requirements/requirements_dev.txt

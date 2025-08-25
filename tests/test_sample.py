@@ -1,11 +1,12 @@
 """Sample test module."""
+
 import unittest
 
 
 class TestTrue(unittest.TestCase):
     """Sample test class."""
 
-    def test_true(self):
+    def test_true(self) -> None:
         """Sample test method."""
         self.assertEqual(1, 1)
 
