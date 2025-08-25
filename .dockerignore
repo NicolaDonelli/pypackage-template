@@ -143,6 +143,10 @@ dmypy.json
 # opendiff
 *.orig
 
+# pre-commit
+.commitlintrc.yaml
+.pre-commit-config.yaml
+
 # Other
 notebooks/
 *.egg-info

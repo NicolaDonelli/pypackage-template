@@ -1,1 +1,1 @@
-""" Module for unit and integration tests """
+"""Module for unit and integration tests"""
